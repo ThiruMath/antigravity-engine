@@ -3,6 +3,14 @@ import json
 from google import genai
 import re
 
+# -------- SETUP & SESSION STATE --------
+st.set_page_config(page_title="Antigravity Learning", layout="wide")
+
+if "llm_calls" not in st.session_state:
+    st.session_state.llm_calls = 0
+
+MAX_CALLS = 2
+
 # -------- LOAD DATA --------
 with open("dataset.json", encoding="utf-8") as f:
     dataset = json.load(f)
@@ -21,7 +29,7 @@ QC_TO_SKILL = {
     "Sequence Pattern": "Sequences"
 }
 
-# -------- LLM CALL FUNCTION --------
+# -------- AI FUNCTIONS --------
 def get_llm_feedback(question, student_answer, correct_answer, system_prompt, api_key):
     try:
         client = genai.Client(api_key=api_key)
@@ -48,6 +56,14 @@ Return JSON only:
     except Exception as e:
         return f'{{"error_type": "API Error", "reason": "{str(e)}", "step_error": "N/A", "hint": "N/A"}}'
 
+def demo_ai_response(question, student_answer):
+    return {
+        "error_type": "Sign Error",
+        "reason": "You moved the constant incorrectly across the equation. The sign should change when shifting sides.",
+        "step_error": "Step 2: Isolate variable",
+        "hint": "When moving a term across '=', always flip its sign."
+    }
+
 def analyze_student(student):
     skill_errors = {}
     for attempt in student["attempts"]:
@@ -67,9 +83,7 @@ def diagnose(skill_errors):
         else: diagnosis[skill] = "🟡 Needs Practice"
     return diagnosis
 
-# -------- UI LAYOUT --------
-st.set_page_config(page_title="Antigravity Learning", layout="wide")
-
+# -------- UI: HEADER --------
 st.markdown("""
 # 🚀 Antigravity Learning Intelligence Engine
 
@@ -85,6 +99,16 @@ st.markdown("""
 # -------- SIDEBAR --------
 st.sidebar.header("🔑 LLM Settings")
 api_key = st.sidebar.text_input("Enter Gemini API Key", type="password")
+
+with st.sidebar.expander("🔑 How to get your Gemini API key"):
+    st.markdown("""
+1. Go to: [Google AI Studio](https://aistudio.google.com/app/apikey)  
+2. Click **Create API Key**  
+3. Copy and paste it above  
+
+⚡ No billing needed for basic usage.
+""")
+
 st.sidebar.markdown("---")
 
 st.sidebar.header("🎯 Demo Mode")
@@ -132,27 +156,39 @@ if q and student_ans:
                 st.markdown("### 📌 Rule Engine")
                 st.write(f"**Target QC:** {match['qc']}")
                 st.info(f"**Error Type:** {error_type}")
-                st.write(f"**Expected Correct Answer:** `{correct}`")
+                st.write(f"**Expected Answer:** `{correct}`")
 
             with col2:
-                if api_key:
-                    st.markdown("### 🤖 AI Insight (LLM)")
+                st.markdown("### 🤖 AI Diagnosis")
+                
+                parsed = None
+                llm_output = ""
+
+                if api_key and st.session_state.llm_calls < MAX_CALLS:
                     with st.spinner("Generating deep reasoning..."):
                         llm_output = get_llm_feedback(q, student_ans, correct, system_prompt, api_key)
+                        st.session_state.llm_calls += 1
                     
                     try:
                         clean_output = re.sub(r'```json\n|\n```', '', llm_output).strip()
                         parsed = json.loads(clean_output)
-
-                        st.success(f"**Error:** {parsed.get('error_type', 'Unknown')}")
-                        st.write(f"**Why:** {parsed.get('reason', 'N/A')}")
-                        st.write(f"**Step Error:** {parsed.get('step_error', 'N/A')}")
-                        st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
-                    except Exception as e:
-                        st.code(llm_output)
+                    except Exception:
+                        pass
                 else:
-                    st.markdown("### 🤖 AI Insight (LLM)")
-                    st.warning("Enter Gemini API Key in the sidebar to unlock deep step-level explanations and hints.")
+                    if not api_key:
+                        st.info("🤖 AI is currently in *demo mode* (saving my wallet 💸).\n\nWant real intelligence?\n👉 Add your Gemini API key in the sidebar.\n\nDon’t worry — it takes 30 seconds.")
+                    elif st.session_state.llm_calls >= MAX_CALLS:
+                        st.warning("⚠️ Live AI limit reached. Switching to demo mode.")
+                    
+                    parsed = demo_ai_response(q, student_ans)
+
+                if parsed:
+                    st.success(f"**Error:** {parsed.get('error_type', 'Unknown')}")
+                    st.write(f"**Why:** {parsed.get('reason', 'N/A')}")
+                    st.write(f"**Step Error:** {parsed.get('step_error', 'N/A')}")
+                    st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
+                else:
+                    st.code(llm_output)
 
 st.markdown("---")
 
