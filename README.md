@@ -1,26 +1,35 @@
-# 🚀 Antigravity Learning Intelligence Engine
+# 🚀 Antigravity: Learning Intelligence Engine
 
-An interactive system that:
-- Classifies math problems into QCs
-- Breaks them into structured steps (Skill vs Operation)
-- Evaluates student responses
-- Diagnoses skill gaps
+## 🧠 Problem
+Students repeatedly make the same mistakes without understanding why.
 
-## 🔥 Features
+## 💡 Solution
+A system that diagnoses student errors and maps them to underlying skills.
+
+## ⚙️ Features
 - QC Classification Engine
-- Step Breakdown Engine
+- Step Breakdown (Skill vs Operation)
 - Error Detection System
-- Skill Gap Dashboard (Streamlit UI)
+- Skill Gap Analysis
+- LLM-powered "Why Wrong" explanations
+
+## 🧪 Example
+Input:
+2x + 3 = 7  
+Student: x = -2  
+
+Output:
+- Error: Sign Error  
+- Why: Incorrect shifting of constant  
+- Step Error: Isolation of variable  
+
+## 🚀 Live Demo
+👉 https://mathetes.streamlit.app
 
 ## 🧠 Tech Stack
 - Python
 - Streamlit
+- Gemini API
 
-## ▶️ Run Locally
-```bash
-streamlit run app.py
-```
-
-## 🌐 Live Demo
-
-(Will be added after deployment)
+## 🔥 Highlight
+Hybrid system combining rule-based pedagogy with LLM reasoning.
