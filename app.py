@@ -12,6 +12,12 @@ if "llm_calls" not in st.session_state:
 if "generated_question" not in st.session_state:
     st.session_state.generated_question = None
 
+if "difficulty" not in st.session_state:
+    st.session_state.difficulty = "easy"
+
+if "correct_streak" not in st.session_state:
+    st.session_state.correct_streak = 0
+
 MAX_CALLS = 3
 
 # -------- LOAD DATA --------
@@ -59,7 +65,7 @@ Return JSON only:
     except Exception as e:
         return f'{{"error_type": "API Error", "reason": "{str(e)}", "step_error": "N/A", "hint": "N/A"}}'
 
-def generate_similar_question(question, qc, api_key):
+def generate_similar_question(question, qc, difficulty, api_key):
     try:
         client = genai.Client(api_key=api_key)
         
@@ -71,6 +77,7 @@ def generate_similar_question(question, qc, api_key):
 
 Original Question: {question}
 QC: {qc}
+Difficulty Level: {difficulty}
 """
         response = client.models.generate_content(
             model="gemini-2.0-flash",
@@ -165,8 +172,22 @@ if q and student_ans:
     else:
         correct = match["answer"]
         if str(student_ans).replace(" ", "").lower() == str(correct).replace(" ", "").lower():
-            st.success(f"✅ Correct! The answer is {correct}.")
+            st.success(f"✅ Correct! The answer is {correct}. You're on fire! 🔥")
+            st.session_state.correct_streak += 1
+            
+            # Level Up Logic
+            if st.session_state.correct_streak >= 2:
+                if st.session_state.difficulty == "easy":
+                    st.session_state.difficulty = "medium"
+                    st.toast("Level Up: Medium! 🟡", icon="🚀")
+                elif st.session_state.difficulty == "medium":
+                    st.session_state.difficulty = "hard"
+                    st.toast("Level Up: Hard! 🔴", icon="🏆")
+                st.session_state.correct_streak = 0
         else:
+            st.session_state.correct_streak = 0
+            st.session_state.difficulty = "easy" # Reset to Easy to master fundamentals
+            
             # Severity
             error_type = match['common_error']
             if "Concept" in error_type or "Pattern" in error_type:
@@ -174,89 +195,103 @@ if q and student_ans:
             else:
                 st.warning("🟡 Operational mistake detected")
 
-            # Result Card
-            st.markdown("## 🧠 Diagnosis")
-            col1, col2 = st.columns(2)
+        # --- 📈 LEARNING PROGRESS ---
+        st.markdown("### 📈 Learning Progress")
+        levels = ["easy", "medium", "hard"]
+        progress_val = (levels.index(st.session_state.difficulty) + 1) / 3
+        
+        st.progress(progress_val)
+        status_cols = st.columns(3)
+        with status_cols[0]:
+            st.write(f"Level: **{st.session_state.difficulty.upper()}**")
+        with status_cols[1]:
+            st.write(f"Streak: **{st.session_state.correct_streak}** / 2")
+        with status_cols[2]:
+            st.info(f"Target: {st.session_state.difficulty.upper()} Mastery")
 
-            with col1:
-                st.markdown("### 📌 Rule Engine")
-                st.write(f"**Target QC:** {match['qc']}")
-                st.info(f"**Error Type:** {error_type}")
-                st.write(f"**Expected Answer:** `{correct}`")
+        # Result Card
+        st.markdown("## 🧠 Diagnosis")
+        col1, col2 = st.columns(2)
 
-            with col2:
-                st.markdown("### 🤖 AI Diagnosis")
-                
-                parsed = None
-                llm_output = ""
+        with col1:
+            st.markdown("### 📌 Rule Engine")
+            st.write(f"**Target QC:** {match['qc']}")
+            st.info(f"**Error Type:** {error_type}")
+            st.write(f"**Expected Answer:** `{correct}`")
 
-                if api_key and st.session_state.llm_calls < MAX_CALLS:
-                    with st.spinner("Generating deep reasoning..."):
-                        llm_output = get_llm_feedback(q, student_ans, correct, system_prompt, api_key)
-                        st.session_state.llm_calls += 1
-                    
-                    try:
-                        clean_output = re.sub(r'```json\n|\n```', '', llm_output).strip()
-                        parsed = json.loads(clean_output)
-                    except Exception:
-                        pass
-                else:
-                    if not api_key:
-                        st.info("🤖 AI is currently in *demo mode* (saving my wallet 💸).\n\nWant real intelligence?\n👉 Add your Gemini API key in the sidebar.\n\nDon’t worry — it takes 30 seconds.")
-                    elif st.session_state.llm_calls >= MAX_CALLS:
-                        st.warning("⚠️ Live AI limit reached. Switching to demo mode.")
-                    
-                    parsed = demo_ai_response(q, student_ans)
-
-                if parsed:
-                    st.success(f"**Error:** {parsed.get('error_type', 'Unknown')}")
-                    st.write(f"**Why:** {parsed.get('reason', 'N/A')}")
-                    st.write(f"**Step Error:** {parsed.get('step_error', 'N/A')}")
-                    st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
-                else:
-                    st.code(llm_output)
-
-            # --- 🎯 TARGETED INTERVENTION ---
-            st.markdown("---")
-            st.markdown("### 🎯 Targeted Intervention")
+        with col2:
+            st.markdown("### 🤖 AI Diagnosis")
             
-            focus_skill = QC_TO_SKILL.get(match["qc"], "this concept")
-            hint_text = parsed.get("hint", "Focus on correct step execution") if parsed else "Check your calculations carefully."
-            step_error = parsed.get("step_error", "Check your steps carefully") if parsed else "n/a"
+            parsed = None
+            llm_output = ""
 
-            st.write(f"""
-            You struggled with **{focus_skill}**.
-
-            👉 **How to fix this:**
-            {hint_text}
-
-            ⚡ **Strategy:**
-            Pay close attention to the following step: **{step_error}**
-
-            Next: Solve a similar problem below to reinforce your learning.
-            """)
-
-            # --- 🔁 GENERATE SIMILAR QUESTION ---
-            if st.button("🔁 Generate Similar Question"):
-                if api_key and st.session_state.llm_calls < MAX_CALLS:
-                    with st.spinner("Creating a personalized practice problem..."):
-                        new_q = generate_similar_question(q, match["qc"], api_key)
-                        st.session_state.llm_calls += 1
-                        st.session_state.generated_question = new_q
-                else:
-                    if st.session_state.llm_calls >= MAX_CALLS:
-                        st.warning("⚠️ AI limit reached. Using demo mode.")
-                    # Demo fallback
-                    st.session_state.generated_question = "3x + 5 = 11"
-
-            if st.session_state.generated_question:
-                st.markdown("### 🆕 Try This Similar Question")
-                new_q = st.session_state.generated_question
-                st.success(f"**Question:** {new_q}")
+            if api_key and st.session_state.llm_calls < MAX_CALLS:
+                with st.spinner("Generating deep reasoning..."):
+                    llm_output = get_llm_feedback(q, student_ans, correct, system_prompt, api_key)
+                    st.session_state.llm_calls += 1
                 
-                new_ans = st.text_input("Your Answer for this new question", key="new_q_input")
-                if new_ans:
-                    st.info("Submit this answer above ⬆️ in the main 'Student Answer' box to analyze it!")
+                try:
+                    clean_output = re.sub(r'```json\n|\n```', '', llm_output).strip()
+                    parsed = json.loads(clean_output)
+                except Exception:
+                    pass
+            else:
+                if not api_key:
+                    st.info("🤖 AI is currently in *demo mode* (saving my wallet 💸).\n\nWant real intelligence?\n👉 Add your Gemini API key in the sidebar.\n\nDon’t worry — it takes 30 seconds.")
+                elif st.session_state.llm_calls >= MAX_CALLS:
+                    st.warning("⚠️ Live AI limit reached. Switching to demo mode.")
+                
+                parsed = demo_ai_response(q, student_ans)
+
+            if parsed:
+                st.success(f"**Error:** {parsed.get('error_type', 'Unknown')}")
+                st.write(f"**Why:** {parsed.get('reason', 'N/A')}")
+                st.write(f"**Step Error:** {parsed.get('step_error', 'N/A')}")
+                st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
+            else:
+                st.code(llm_output)
+
+        # --- 🎯 TARGETED INTERVENTION ---
+        st.markdown("---")
+        st.markdown("### 🎯 Targeted Intervention")
+        
+        focus_skill = QC_TO_SKILL.get(match["qc"], "this concept")
+        hint_text = parsed.get("hint", "Focus on correct step execution") if parsed else "Check your calculations carefully."
+        step_error = parsed.get("step_error", "Check your steps carefully") if parsed else "n/a"
+
+        st.write(f"""
+        You struggled with **{focus_skill}**.
+
+        👉 **How to fix this:**
+        {hint_text}
+
+        ⚡ **Strategy:**
+        Pay close attention to the following step: **{step_error}**
+
+        Next: Solve a similar problem below to reinforce your learning.
+        """)
+
+        # --- 🔁 GENERATE SIMILAR QUESTION ---
+        if st.button("🔁 Generate Similar Question"):
+            if api_key and st.session_state.llm_calls < MAX_CALLS:
+                with st.spinner(f"Creating a personalized {st.session_state.difficulty} problem..."):
+                    new_q = generate_similar_question(q, match["qc"], st.session_state.difficulty, api_key)
+                    st.session_state.llm_calls += 1
+                    st.session_state.generated_question = new_q
+            else:
+                if st.session_state.llm_calls >= MAX_CALLS:
+                    st.warning("⚠️ AI limit reached. Using demo mode.")
+                # Demo fallback
+                st.session_state.generated_question = "3x + 5 = 11"
+
+        if st.session_state.generated_question:
+            st.markdown("### 🆕 Try This Similar Question")
+            new_q = st.session_state.generated_question
+            st.success(f"**Question:** {new_q}")
+            
+            new_ans = st.text_input("Your Answer for this new question", key="new_q_input")
+            if new_ans:
+                st.info("Submit this answer above ⬆️ in the main 'Student Answer' box to analyze it!")
 
 st.markdown("---")
 

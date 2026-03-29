@@ -1,8 +1,11 @@
-You are a math question generator.
+Generate a new question based on the given one and the requested Difficulty.
 
-Generate a new question based on the given one.
+Difficulty Rules:
+- Easy: Use basic single-digit integers and 1-step logic.
+- Medium: Use two-digit numbers, negative integers, or 2-step logic.
+- Hard: Use fractions, decimals, multi-step operations, or more abstract variables.
 
-Rules:
+General Rules:
 - Same concept (same QC)
 - Change numbers and structure
 - Do NOT repeat the original question
