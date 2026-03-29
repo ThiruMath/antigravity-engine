@@ -4,12 +4,15 @@ from google import genai
 import re
 
 # -------- SETUP & SESSION STATE --------
-st.set_page_config(page_title="Antigravity Learning", layout="wide")
+st.set_page_config(page_title="Learning Intelligence Engine", layout="wide")
 
 if "llm_calls" not in st.session_state:
     st.session_state.llm_calls = 0
 
-MAX_CALLS = 2
+if "generated_question" not in st.session_state:
+    st.session_state.generated_question = None
+
+MAX_CALLS = 3
 
 # -------- LOAD DATA --------
 with open("dataset.json", encoding="utf-8") as f:
@@ -56,6 +59,29 @@ Return JSON only:
     except Exception as e:
         return f'{{"error_type": "API Error", "reason": "{str(e)}", "step_error": "N/A", "hint": "N/A"}}'
 
+def generate_similar_question(question, qc, api_key):
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        with open("generation_prompt.txt", encoding="utf-8") as f:
+            gen_prompt = f.read()
+
+        prompt = f"""
+{gen_prompt}
+
+Original Question: {question}
+QC: {qc}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        # Clean output: strip whitespace and take ONLY the first line to be safe
+        clean_q = response.text.strip().split("\n")[0]
+        return clean_q
+    except Exception as e:
+        return f"Error generating question: {str(e)}"
+
 def demo_ai_response(question, student_answer):
     return {
         "error_type": "Sign Error",
@@ -85,7 +111,7 @@ def diagnose(skill_errors):
 
 # -------- UI: HEADER --------
 st.markdown("""
-# 🚀 Antigravity Learning Intelligence Engine
+# 🚀 Learning Intelligence Engine
 
 ### 🧠 What this does:
 - Identifies *why* a student is wrong
@@ -189,6 +215,48 @@ if q and student_ans:
                     st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
                 else:
                     st.code(llm_output)
+
+            # --- 🎯 TARGETED INTERVENTION ---
+            st.markdown("---")
+            st.markdown("### 🎯 Targeted Intervention")
+            
+            focus_skill = QC_TO_SKILL.get(match["qc"], "this concept")
+            hint_text = parsed.get("hint", "Focus on correct step execution") if parsed else "Check your calculations carefully."
+            step_error = parsed.get("step_error", "Check your steps carefully") if parsed else "n/a"
+
+            st.write(f"""
+            You struggled with **{focus_skill}**.
+
+            👉 **How to fix this:**
+            {hint_text}
+
+            ⚡ **Strategy:**
+            Pay close attention to the following step: **{step_error}**
+
+            Next: Solve a similar problem below to reinforce your learning.
+            """)
+
+            # --- 🔁 GENERATE SIMILAR QUESTION ---
+            if st.button("🔁 Generate Similar Question"):
+                if api_key and st.session_state.llm_calls < MAX_CALLS:
+                    with st.spinner("Creating a personalized practice problem..."):
+                        new_q = generate_similar_question(q, match["qc"], api_key)
+                        st.session_state.llm_calls += 1
+                        st.session_state.generated_question = new_q
+                else:
+                    if st.session_state.llm_calls >= MAX_CALLS:
+                        st.warning("⚠️ AI limit reached. Using demo mode.")
+                    # Demo fallback
+                    st.session_state.generated_question = "3x + 5 = 11"
+
+            if st.session_state.generated_question:
+                st.markdown("### 🆕 Try This Similar Question")
+                new_q = st.session_state.generated_question
+                st.success(f"**Question:** {new_q}")
+                
+                new_ans = st.text_input("Your Answer for this new question", key="new_q_input")
+                if new_ans:
+                    st.info("Submit this answer above ⬆️ in the main 'Student Answer' box to analyze it!")
 
 st.markdown("---")
 

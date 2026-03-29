@@ -1,4 +1,4 @@
-# 🚀 Antigravity: Learning Intelligence Engine
+# 🚀 Learning Intelligence Engine
 
 ## 🧠 Problem
 Students repeatedly make the same mistakes without understanding why.
