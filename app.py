@@ -17,8 +17,17 @@ if "difficulty" not in st.session_state:
 
 if "correct_streak" not in st.session_state:
     st.session_state.correct_streak = 0
+    
+if "teaching_content" not in st.session_state:
+    st.session_state.teaching_content = None
 
-MAX_CALLS = 3
+if "reteach_content" not in st.session_state:
+    st.session_state.reteach_content = None
+
+if "mastered" not in st.session_state:
+    st.session_state.mastered = False
+
+MAX_CALLS = 10
 
 # -------- LOAD DATA --------
 with open("dataset.json", encoding="utf-8") as f:
@@ -39,6 +48,36 @@ QC_TO_SKILL = {
 }
 
 # -------- AI FUNCTIONS --------
+def get_teaching_content(topic, grade, api_key):
+    try:
+        client = genai.Client(api_key=api_key)
+        with open("teaching_prompt.txt", encoding="utf-8") as f:
+            prompt_template = f.read()
+        
+        prompt = prompt_template.replace("{topic}", topic).replace("{grade}", grade)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"Error generating teaching content: {str(e)}"
+
+def get_reteach_content(topic, confusion, api_key):
+    try:
+        client = genai.Client(api_key=api_key)
+        with open("reteach_prompt.txt", encoding="utf-8") as f:
+            prompt_template = f.read()
+        
+        prompt = prompt_template.replace("{topic}", topic).replace("{confusion}", confusion)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"Error generating reteach content: {str(e)}"
+
 def get_llm_feedback(question, student_answer, correct_answer, system_prompt, api_key):
     try:
         client = genai.Client(api_key=api_key)
@@ -129,24 +168,27 @@ st.markdown("""
 ---
 """)
 
-# -------- SIDEBAR --------
-st.sidebar.header("🔑 LLM Settings")
-api_key = st.sidebar.text_input("Enter Gemini API Key", type="password")
+# -------- UI: SIDEBAR --------
+st.sidebar.markdown("## ⚙️ Configuration")
+grade = st.sidebar.selectbox("Select Grade", ["6", "7", "8"])
+topic = st.sidebar.selectbox("Select Topic", list(QC_TO_SKILL.keys()))
 
-with st.sidebar.expander("🔑 How to get your Gemini API key"):
+st.sidebar.markdown("---")
+st.sidebar.header("🔑 Engine Core (LLM)")
+api_key = st.sidebar.text_input("Gemini API Key", type="password")
+
+with st.sidebar.expander("🔑 Get an API key (Free)"):
     st.markdown("""
 1. Go to: [Google AI Studio](https://aistudio.google.com/app/apikey)  
-2. Click **Create API Key**  
-3. Copy and paste it above  
-
-⚡ No billing needed for basic usage.
+2. Click **Create API Key**
 """)
 
 st.sidebar.markdown("---")
 
-st.sidebar.header("🎯 Demo Mode")
+# Demo Selector (fallback)
+st.sidebar.header("🎯 Fast Demo")
 demo_question = st.sidebar.selectbox(
-    "Try Example",
+    "Test a specific question",
     [
         "2x + 3 = 7",
         "x^2 - 9",
@@ -155,27 +197,51 @@ demo_question = st.sidebar.selectbox(
     ]
 )
 
-# -------- DEMO SECTION --------
-st.header("🎯 Interactive Diagnosis Demo")
+# -------- UI ALIGNMENT: 5-PHASE FLOW --------
+q = demo_question
 
-q = st.text_input("Enter Question", value=demo_question)
-student_ans = st.text_input(
-    "Student Answer",
-    value="x = -2" if q == "2x + 3 = 7" else ""
-)
+# Demo mode question matching
+match = next((d for d in dataset if d["question"].replace(" ", "").lower() == q.replace(" ", "").lower()), None)
+correct = match["answer"] if match else "N/A"
 
-if q and student_ans:
-    match = next((d for d in dataset if d["question"].replace(" ", "").lower() == q.replace(" ", "").lower()), None)
+# --- PHASE 1: TEACHING ---
+st.markdown(f"## 🧠 1. Let's Learn: {topic}")
 
-    if not match:
-        st.warning("Question not in dataset. Try a guided example.")
+if st.button("🎓 Teach Me"):
+    if api_key and st.session_state.llm_calls < MAX_CALLS:
+        with st.spinner("Preparing lesson..."):
+            st.session_state.teaching_content = get_teaching_content(topic, grade, api_key)
+            st.session_state.llm_calls += 1
     else:
-        correct = match["answer"]
-        if str(student_ans).replace(" ", "").lower() == str(correct).replace(" ", "").lower():
-            st.success(f"✅ Correct! The answer is {correct}. You're on fire! 🔥")
+        st.session_state.teaching_content = f"**Demo Concept: {topic}**\n\nImagine you are balancing a scale. What you do to one side, you MUST do to the other.\n\n**Example:** 2x + 4 = 10\n1. Subtract 4 from both sides.\n2. 2x = 6\n3. Divide by 2.\n4. x = 3"
+
+if st.session_state.teaching_content:
+    st.info(st.session_state.teaching_content)
+
+st.divider()
+
+# --- PHASE 2: SOLVING (Step-by-Step) ---
+st.markdown("## ✍️ 2. Step-by-Step Practice")
+st.write(f"**Try this:** `{q}`")
+
+step1 = st.text_input("Step 1: What is your first move? (e.g., 'subtract 3')")
+step2 = st.text_input("Step 2: What is the new equation? (e.g., '2x = 4')")
+final_ans = st.text_input("Final Answer (e.g., 'x = 2')")
+
+# Logic trigger flag
+submit_answer = st.button("Evaluate My Thinking")
+is_correct = False
+
+if submit_answer and final_ans:
+    if not match:
+        st.warning("Question not in dataset. Try a guided demo example.")
+    else:
+        is_correct = str(final_ans).replace(" ", "").lower() == str(correct).replace(" ", "").lower()
+        if is_correct:
+            st.success(f"✅ Correct! The answer is {correct}. You nailed it! 🔥")
             st.session_state.correct_streak += 1
             
-            # Level Up Logic
+            # Phase 4/5: Mastery & Badges
             if st.session_state.correct_streak >= 2:
                 if st.session_state.difficulty == "easy":
                     st.session_state.difficulty = "medium"
@@ -183,143 +249,98 @@ if q and student_ans:
                 elif st.session_state.difficulty == "medium":
                     st.session_state.difficulty = "hard"
                     st.toast("Level Up: Hard! 🔴", icon="🏆")
-                st.session_state.correct_streak = 0
+            
+            if st.session_state.correct_streak >= 3:
+                st.session_state.mastered = True
+                st.balloons()
+                st.success(f"🏆 YOU EARNED A BADGE: {topic} Master!")
         else:
             st.session_state.correct_streak = 0
-            st.session_state.difficulty = "easy" # Reset to Easy to master fundamentals
+            st.session_state.difficulty = "easy"
+            st.session_state.mastered = False
             
-            # Severity
+            # --- PHASE 3: EVALUATION Engine ---
+            st.markdown("## 🧠 3. Diagnosis (Let's see what happened)")
             error_type = match['common_error']
-            if "Concept" in error_type or "Pattern" in error_type:
-                st.error("🔴 Conceptual misunderstanding detected")
-            else:
-                st.warning("🟡 Operational mistake detected")
-
-        # --- 📈 LEARNING PROGRESS ---
-        st.markdown("### 📈 Learning Progress")
-        levels = ["easy", "medium", "hard"]
-        progress_val = (levels.index(st.session_state.difficulty) + 1) / 3
-        
-        st.progress(progress_val)
-        status_cols = st.columns(3)
-        with status_cols[0]:
-            st.write(f"Level: **{st.session_state.difficulty.upper()}**")
-        with status_cols[1]:
-            st.write(f"Streak: **{st.session_state.correct_streak}** / 2")
-        with status_cols[2]:
-            st.info(f"Target: {st.session_state.difficulty.upper()} Mastery")
-
-        # Result Card
-        st.markdown("## 🧠 Diagnosis")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("### 📌 Rule Engine")
-            st.write(f"**Target QC:** {match['qc']}")
-            st.info(f"**Error Type:** {error_type}")
-            st.write(f"**Expected Answer:** `{correct}`")
-
-        with col2:
-            st.markdown("### 🤖 AI Diagnosis")
             
-            parsed = None
-            llm_output = ""
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 📌 Rule Engine")
+                st.error("❌ " + ("Conceptual error" if "Concept" in error_type else "Operational mistake"))
+                st.write(f"**Error Type:** {error_type}")
 
-            if api_key and st.session_state.llm_calls < MAX_CALLS:
-                with st.spinner("Generating deep reasoning..."):
-                    llm_output = get_llm_feedback(q, student_ans, correct, system_prompt, api_key)
-                    st.session_state.llm_calls += 1
-                
-                try:
-                    clean_output = re.sub(r'```json\n|\n```', '', llm_output).strip()
-                    parsed = json.loads(clean_output)
-                except Exception:
-                    pass
-            else:
-                if not api_key:
-                    st.info("🤖 AI is currently in *demo mode* (saving my wallet 💸).\n\nWant real intelligence?\n👉 Add your Gemini API key in the sidebar.\n\nDon’t worry — it takes 30 seconds.")
-                elif st.session_state.llm_calls >= MAX_CALLS:
-                    st.warning("⚠️ Live AI limit reached. Switching to demo mode.")
-                
-                parsed = demo_ai_response(q, student_ans)
+            with col2:
+                st.markdown("### 🤖 AI Tutor Thinking...")
+                parsed = None
+                if api_key and st.session_state.llm_calls < MAX_CALLS:
+                    with st.spinner("Analyzing steps..."):
+                        llm_out = get_llm_feedback(q, final_ans, correct, system_prompt, api_key)
+                        st.session_state.llm_calls += 1
+                    try:
+                        clean = re.sub(r'```json\n|\n```', '', llm_out).strip()
+                        parsed = json.loads(clean)
+                    except:
+                        pass
+                else:
+                    parsed = demo_ai_response(q, final_ans)
 
-            if parsed:
-                st.success(f"**Error:** {parsed.get('error_type', 'Unknown')}")
-                st.write(f"**Why:** {parsed.get('reason', 'N/A')}")
-                st.write(f"**Step Error:** {parsed.get('step_error', 'N/A')}")
-                st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
-            else:
-                st.code(llm_output)
+                if parsed:
+                    st.write(f"**Why:** {parsed.get('reason', 'N/A')}")
+                    st.write(f"**Where it went wrong:** {parsed.get('step_error', 'N/A')}")
+                    st.info(f"💡 **Hint:** {parsed.get('hint', 'N/A')}")
 
-        # --- 🎯 TARGETED INTERVENTION ---
-        st.markdown("---")
-        st.markdown("### 🎯 Targeted Intervention")
-        
-        focus_skill = QC_TO_SKILL.get(match["qc"], "this concept")
-        hint_text = parsed.get("hint", "Focus on correct step execution") if parsed else "Check your calculations carefully."
-        step_error = parsed.get("step_error", "Check your steps carefully") if parsed else "n/a"
-
-        st.write(f"""
-        You struggled with **{focus_skill}**.
-
-        👉 **How to fix this:**
-        {hint_text}
-
-        ⚡ **Strategy:**
-        Pay close attention to the following step: **{step_error}**
-
-        Next: Solve a similar problem below to reinforce your learning.
-        """)
-
-        # --- 🔁 GENERATE SIMILAR QUESTION ---
-        if st.button("🔁 Generate Similar Question"):
-            if api_key and st.session_state.llm_calls < MAX_CALLS:
-                with st.spinner(f"Creating a personalized {st.session_state.difficulty} problem..."):
-                    new_q = generate_similar_question(q, match["qc"], st.session_state.difficulty, api_key)
-                    st.session_state.llm_calls += 1
-                    st.session_state.generated_question = new_q
-            else:
-                if st.session_state.llm_calls >= MAX_CALLS:
-                    st.warning("⚠️ AI limit reached. Using demo mode.")
-                # Demo fallback
-                st.session_state.generated_question = "3x + 5 = 11"
-
-        if st.session_state.generated_question:
-            st.markdown("### 🆕 Try This Similar Question")
-            new_q = st.session_state.generated_question
-            st.success(f"**Question:** {new_q}")
+            # --- PHASE 3B: INTELLIGENCE (RETEACH) ---
+            st.divider()
+            st.markdown("## 🤔 4. Still confused?")
+            confusion = st.text_input("💬 Tell me exactly what didn't make sense:")
             
-            new_ans = st.text_input("Your Answer for this new question", key="new_q_input")
-            if new_ans:
-                st.info("Submit this answer above ⬆️ in the main 'Student Answer' box to analyze it!")
+            if st.button("Try explaining differently"):
+                if api_key and st.session_state.llm_calls < MAX_CALLS:
+                    with st.spinner("Rethinking explanation..."):
+                        st.session_state.reteach_content = get_reteach_content(topic, confusion, api_key)
+                        st.session_state.llm_calls += 1
+                else:
+                    st.session_state.reteach_content = "Demo Reteach: Think of the equal sign like a bridge. To cross the bridge, a number has to pay a toll — meaning it changes its sign (+ becomes -, and - becomes +)."
+                    
+            if st.session_state.reteach_content:
+                st.info(st.session_state.reteach_content)
 
+st.divider()
+
+# --- PHASE 4: ADAPTIVITY AND PRACTICE ---
+st.markdown("## 📈 5. Practice & Progress")
+
+levels = ["easy", "medium", "hard"]
+progress_val = (levels.index(st.session_state.difficulty) + 1) / 3
+st.progress(progress_val)
+st.write(f"🎮 Current Level: **{st.session_state.difficulty.upper()}** | 🔥 Correct Streak: **{st.session_state.correct_streak}**")
+
+if st.button("🔁 Give me a similar question"):
+    if api_key and st.session_state.llm_calls < MAX_CALLS:
+        with st.spinner(f"Crafting a personalized {st.session_state.difficulty} problem..."):
+            new_q = generate_similar_question(q, topic, st.session_state.difficulty, api_key)
+            st.session_state.llm_calls += 1
+            st.session_state.generated_question = new_q
+    else:
+        st.session_state.generated_question = "3x - 5 = 10" # Demo Harder
+
+if st.session_state.generated_question:
+    st.success(f"**Try this one:** {st.session_state.generated_question}")
+    st.caption("Refresh or test this using the input fields above! ⬆️")
+    
 st.markdown("---")
 
-# -------- ANALYTICS SECTION --------
-with st.expander("📊 View Aggregate Student Analytics (Batch Mode)"):
+with st.expander("📊 Teacher View: Batch Analytics"):
+    st.write("Analytics engine running on `students.json` metadata...")
     student_ids = [s["student_id"] for s in students]
-    selected_id = st.selectbox("Select Student Profile", student_ids)
+    selected_id = st.selectbox("Select Profile", student_ids)
     student = next(s for s in students if s["student_id"] == selected_id)
-
     errors = analyze_student(student)
     diagnosis = diagnose(errors)
 
-    colA, colB = st.columns([2,1])
-    with colA:
-        if not errors:
-            st.success("No errors found. Student is strong across all skills.")
-        else:
-            for skill, count in errors.items():
-                st.write(f"**{skill}** → Errors: {count} | Status: {diagnosis[skill]}")
-        st.header("📌 Recommendations")
-        if not errors:
-             st.write("Keep up the good work!")
-        else:
-            for skill, status in diagnosis.items():
-                if status == "🔴 Weak":
-                    st.write(f"👉 Focus on **{skill}** (high priority)")
-                else:
-                    st.write(f"👉 Practice **{skill}** to improve")
-    with colB:
-        if errors:
-            st.bar_chart(errors)
+    if not errors:
+        st.success("No errors detected. Mastery maintained.")
+    else:
+        for skill, count in errors.items():
+            st.write(f"**{skill}** → Errors: {count} | Status: {diagnosis[skill]}")
+        st.bar_chart(errors)

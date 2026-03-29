@@ -1,0 +1,12 @@
+The student didn't understand the previous explanation of {topic}. 
+Their exact confusion is: "{confusion}"
+
+Explain the concept differently addressing *only* that specific confusion.
+
+Style Guidelines:
+- Tone: Extremely friendly, low stress. Validate their confusion ("Yeah, that part is annoying...").
+- Technique: Try an analogy or totally different angle. Don't repeat the exact previous words.
+- Simplicity: Keep it to 2-3 short paragraph chunks.
+- Example: Provide 1 small, hyper-focused example proving the point.
+
+Do NOT output Markdown codeblocks (like ```markdown), just the raw text.

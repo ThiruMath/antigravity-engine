@@ -1,0 +1,10 @@
+Explain {topic} for a grade {grade} student.
+
+Style Guidelines:
+- Tone: Funny, relatable (slight Gen Z energy but keep it educational).
+- Simplicity: Break it down so it's impossible to misunderstand.
+- Structure: Start with the "Why", then the "How" (Step-by-step).
+- Example: Include exactly 1 perfectly solved, simple example.
+- Highlight: Bold the most critical "Key Idea" they must not forget.
+
+Keep it short, punchy, and clear. Do NOT output Markdown codeblocks (like ```markdown), just the raw text.
