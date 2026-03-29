@@ -1,0 +1,181 @@
+[
+  {
+    "qc": "Linear Equation – Basic",
+    "question": "2x + 3 = 7",
+    "answer": "x=2",
+    "difficulty": "easy",
+    "common_error": "Sign mistake while shifting constant"
+  },
+  {
+    "qc": "Linear Equation – Basic",
+    "question": "5x - 10 = 0",
+    "answer": "x=2",
+    "difficulty": "easy",
+    "common_error": "Incorrect division"
+  },
+  {
+    "qc": "Linear Equation – Basic",
+    "question": "x/2 + 4 = 10",
+    "answer": "x=12",
+    "difficulty": "medium",
+    "common_error": "Fraction miscalculation"
+  },
+  {
+    "qc": "Linear Equation – Basic",
+    "question": "3x + 1 = 1",
+    "answer": "x=0",
+    "difficulty": "easy",
+    "common_error": "Ignoring zero case"
+  },
+  {
+    "qc": "Linear Equation – Basic",
+    "question": "-4x + 8 = 0",
+    "answer": "x=2",
+    "difficulty": "medium",
+    "common_error": "Sign error"
+  },
+
+  {
+    "qc": "Linear Equation – Variables on Both Sides",
+    "question": "2x + 3 = x + 5",
+    "answer": "x=2",
+    "difficulty": "easy",
+    "common_error": "Not shifting variables properly"
+  },
+  {
+    "qc": "Linear Equation – Variables on Both Sides",
+    "question": "5x - 2 = 3x + 6",
+    "answer": "x=4",
+    "difficulty": "medium",
+    "common_error": "Sign error"
+  },
+  {
+    "qc": "Linear Equation – Variables on Both Sides",
+    "question": "4x + 1 = 2x + 9",
+    "answer": "x=4",
+    "difficulty": "medium",
+    "common_error": "Incorrect subtraction"
+  },
+  {
+    "qc": "Linear Equation – Variables on Both Sides",
+    "question": "7x - 3 = 5x + 1",
+    "answer": "x=2",
+    "difficulty": "medium",
+    "common_error": "Arithmetic mistake"
+  },
+  {
+    "qc": "Linear Equation – Variables on Both Sides",
+    "question": "3x + 2 = 3x + 5",
+    "answer": "No solution",
+    "difficulty": "medium",
+    "common_error": "Assuming solution exists"
+  },
+
+  {
+    "qc": "Integer Operations",
+    "question": "-5 + 3",
+    "answer": "-2",
+    "difficulty": "easy",
+    "common_error": "Sign confusion"
+  },
+  {
+    "qc": "Integer Operations",
+    "question": "7 - (-2)",
+    "answer": "9",
+    "difficulty": "easy",
+    "common_error": "Double negative confusion"
+  },
+  {
+    "qc": "Integer Operations",
+    "question": "-8 + (-4)",
+    "answer": "-12",
+    "difficulty": "easy",
+    "common_error": "Incorrect addition"
+  },
+  {
+    "qc": "Integer Operations",
+    "question": "6 - 9",
+    "answer": "-3",
+    "difficulty": "easy",
+    "common_error": "Sign error"
+  },
+  {
+    "qc": "Integer Operations",
+    "question": "-10 - (-5)",
+    "answer": "-5",
+    "difficulty": "medium",
+    "common_error": "Wrong conversion"
+  },
+
+  {
+    "qc": "Factorization – Difference of Squares",
+    "question": "x^2 - 9",
+    "answer": "(x-3)(x+3)",
+    "difficulty": "easy",
+    "common_error": "Missing identity"
+  },
+  {
+    "qc": "Factorization – Difference of Squares",
+    "question": "a^2 - 16",
+    "answer": "(a-4)(a+4)",
+    "difficulty": "easy",
+    "common_error": "Incorrect factors"
+  },
+  {
+    "qc": "Factorization – Difference of Squares",
+    "question": "4x^2 - 25",
+    "answer": "(2x-5)(2x+5)",
+    "difficulty": "medium",
+    "common_error": "Ignoring coefficient"
+  },
+  {
+    "qc": "Factorization – Difference of Squares",
+    "question": "y^2 - 1",
+    "answer": "(y-1)(y+1)",
+    "difficulty": "easy",
+    "common_error": "Incomplete factorization"
+  },
+  {
+    "qc": "Factorization – Difference of Squares",
+    "question": "9m^2 - 49",
+    "answer": "(3m-7)(3m+7)",
+    "difficulty": "medium",
+    "common_error": "Square root mistake"
+  },
+
+  {
+    "qc": "Sequence Pattern",
+    "question": "2, 4, 8, 16",
+    "answer": "32",
+    "difficulty": "easy",
+    "common_error": "Assuming addition"
+  },
+  {
+    "qc": "Sequence Pattern",
+    "question": "5, 10, 15, 20",
+    "answer": "25",
+    "difficulty": "easy",
+    "common_error": "Pattern misread"
+  },
+  {
+    "qc": "Sequence Pattern",
+    "question": "3, 9, 27",
+    "answer": "81",
+    "difficulty": "medium",
+    "common_error": "Wrong multiplier"
+  },
+  {
+    "qc": "Sequence Pattern",
+    "question": "1, 4, 9, 16",
+    "answer": "25",
+    "difficulty": "medium",
+    "common_error": "Missing square pattern"
+  },
+  {
+    "qc": "Sequence Pattern",
+    "question": "7, 14, 28, 56",
+    "answer": "112",
+    "difficulty": "medium",
+    "common_error": "Pattern confusion"
+  }
+]
